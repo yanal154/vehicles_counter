@@ -16,8 +16,8 @@ A compact project that counts vehicles crossing user-defined lines in a video us
 
 ## 1. clone the repository
 ```bash
-git clone <REPOSITORY_URL>
-cd <REPOSITORY_NAME>
+git clone https://github.com/yanal154/vehicles_counter
+cd vehicles_counter
 ````
 
 ## 2. create and activate a venv (recommended)
@@ -76,5 +76,6 @@ python main.py
 4. For each tracked object of vehicle classes, it checks if its centroid crosses any line (side change + projection on segment).
 5. When a crossing is detected (and debounced by a minimum frame gap), it increments the per-line and per-class counters and temporarily colors the bbox with the line color.
 6. An annotated output video is written and counts are printed to console.
+
 
 
