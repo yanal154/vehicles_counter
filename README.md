@@ -35,6 +35,19 @@ source .venv/bin/activate
 ```bash
 pip install -r requirements.txt
 ```
+## Download YOLOv12 Model
+
+Before running the project, you need to download the YOLOv12 weights file (`YOLOv12l.pt`) from the following link:
+
+[Download YOLOv12l.pt](https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo12l.pt)
+
+After downloading, place the file in the project folder or update the file path in the code:
+
+```python
+from ultralytics import YOLO
+
+MODEL_WEIGHTS = "yolo12l.pt"  # Update the path if the file is in a different location
+model = YOLO(MODEL_WEIGHTS)
 
 ## 4. put your video file in the repo and set VIDEO\_PATH in the script
 
@@ -63,4 +76,5 @@ python main.py
 4. For each tracked object of vehicle classes, it checks if its centroid crosses any line (side change + projection on segment).
 5. When a crossing is detected (and debounced by a minimum frame gap), it increments the per-line and per-class counters and temporarily colors the bbox with the line color.
 6. An annotated output video is written and counts are printed to console.
+
 
