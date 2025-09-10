@@ -5,15 +5,13 @@ import math
 import time
 import numpy as np
 
-VIDEO_PATH = "14350554_3840_2160_60fps.mp4"     
+VIDEO_PATH = "4261446-uhd_3840_2160_25fps.mp4"     
 OUTPUT_VIDEO = "VEHICLE_counter.mp4"
 MODEL_WEIGHTS = "yolo12l.pt"   
 
 model = YOLO(MODEL_WEIGHTS)
 
-
 line_points_list = []
-
 window_name = "select_lines"
 
 VEHICLE_CLASS_MAP = {
@@ -88,9 +86,9 @@ def select_lines_interactive(video_path, display_max_w=800):
         temp = frame.copy()
         for line in line_points_list:
             for (px, py) in line:
-                cv2.circle(temp, (px, py), 6, (0, 255, 0), -1)
+                cv2.circle(temp, (px, py), 12, (0, 255, 0), -1)  # increased size
             if len(line) == 2:
-                cv2.line(temp, line[0], line[1], (0, 255, 0), 2)
+                cv2.line(temp, line[0], line[1], (0, 255, 0), 4)  # increased thickness
 
         cv2.imshow(window_name, temp)
         key = cv2.waitKey(20) & 0xFF
@@ -184,8 +182,12 @@ def count_vehicle_with_lines(input_path, output_path, lines, max_frames=None):
 
     # state for each track per line
     track_sides = {i: {} for i in range(n_lines)}
-    last_count_frame = {}  # (track_id, line_idx) -> last frame counted
-    MIN_FRAMES_BETWEEN_COUNTS = 5
+    
+   
+    last_counted_frame = {i: {} for i in range(n_lines)}
+    
+
+    counted_tracks = {i: set() for i in range(n_lines)}
 
     # remember last crossed line for coloring bbox and decay after some frames
     last_line_for_track = {}       # track_id -> (line_idx, frame_idx)
@@ -211,11 +213,11 @@ def count_vehicle_with_lines(input_path, output_path, lines, max_frames=None):
         # draw lines with distinct colors
         for idx, (p1, p2) in enumerate(lines):
             color = line_colors[idx]
-            cv2.line(frame, p1, p2, color, 4)
+            cv2.line(frame, p1, p2, color, 8)  # increased thickness
             # draw small colored midpoint circle
             mx = (p1[0] + p2[0]) // 2
             my = (p1[1] + p2[1]) // 2
-            cv2.circle(frame, (mx, my), 8, color, -1)
+            cv2.circle(frame, (mx, my), 16, color, -1)  # increased radius
             # draw small label rectangle with color top-left area later
 
         if result.boxes is None or len(result.boxes) == 0:
@@ -223,18 +225,18 @@ def count_vehicle_with_lines(input_path, output_path, lines, max_frames=None):
             for i, cnts in enumerate(counts_by_line):
                 color = line_colors[i]
                 base_x = 20
-                base_y = 20 + i * 70
-                rect_w = 420
-                rect_h = 60
+                base_y = 20 + i * 140  # increased gap
+                rect_w = 920  # increased width
+                rect_h = 140  # increased height
                 # colored strip at left of legend
-                cv2.rectangle(frame, (base_x, base_y), (base_x + 18, base_y + rect_h), color, -1)
+                cv2.rectangle(frame, (base_x, base_y), (base_x + 36, base_y + rect_h), color, -1)  # wider strip
                 # background
-                cv2.rectangle(frame, (base_x + 20, base_y), (base_x + 20 + rect_w, base_y + rect_h), (0, 0, 0), -1)
-                cv2.putText(frame, f"Line {i+1} Total: {cnts['total']}", (base_x + 28, base_y + 28),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
+                cv2.rectangle(frame, (base_x + 40, base_y), (base_x + 40 + rect_w, base_y + rect_h), (0, 0, 0), -1)
+                cv2.putText(frame, f"Line {i+1} Total: {cnts['total']}", (base_x + 56, base_y + 60),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.6, color, 4)  # larger font & thickness
                 breakdown = f"car:{cnts['car']}  bus:{cnts['bus']}  truck:{cnts['truck']}  moto:{cnts['motorcycle']}"
-                cv2.putText(frame, breakdown, (base_x + 28, base_y + 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+                cv2.putText(frame, breakdown, (base_x + 56, base_y + 100),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 2)  # larger font
             out.write(frame)
             frame_idx += 1
             continue
@@ -260,7 +262,7 @@ def count_vehicle_with_lines(input_path, output_path, lines, max_frames=None):
 
             # default bbox color
             bbox_color = (0, 255, 0)
-            bbox_thickness = 3
+            bbox_thickness = 6  # increased thickness
 
             # if this track recently crossed a line, color bbox with that line color
             track_id = None
@@ -271,19 +273,21 @@ def count_vehicle_with_lines(input_path, output_path, lines, max_frames=None):
                     line_idx_crossed, frame_of_cross = last
                     if frame_idx - frame_of_cross <= LINE_COLOR_DECAY_FRAMES:
                         bbox_color = line_colors[line_idx_crossed]
-                        bbox_thickness = 4
+                        bbox_thickness = 8  # increased thickness for colored bbox
 
             # draw bbox with possibly line color
             cv2.rectangle(frame, (nx1, ny1), (nx2, ny2), bbox_color, bbox_thickness)
-            cv2.circle(frame, (cx, cy), 5, bbox_color, -1)
+            cv2.circle(frame, (cx, cy), 10, bbox_color, -1)  # larger center circle
 
             vehicle_type = VEHICLE_CLASS_MAP[cls_id]
 
+            # إظهار ID الكائن ونوعه
+            label = f"{vehicle_type} ID:{track_id}" if track_id is not None else vehicle_type
+            cv2.putText(frame, label, (nx1, max(30, ny1 - 12)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 4)  # larger label
+
             # if no track id, skip counting (can't avoid duplicates reliably)
             if track_id is None:
-                # put small label in white
-                cv2.putText(frame, vehicle_type, (nx1, max(15, ny1 - 8)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
                 continue
 
             # check each line for crossing (based on side change & projection on segment)
@@ -300,49 +304,51 @@ def count_vehicle_with_lines(input_path, output_path, lines, max_frames=None):
 
                 side = point_side_of_line(cx, cy, x1l, y1l, x2l, y2l)
                 prev = track_sides[i].get(track_id, None)
+                
                 if prev is None:
                     track_sides[i][track_id] = side
                 else:
                     if side != prev and side != 0:
-                        key = (track_id, i)
-                        last = last_count_frame.get(key, -9999)
-                        if frame_idx - last >= MIN_FRAMES_BETWEEN_COUNTS:
-                            # count by vehicle type and total
-                            counts_by_line[i][vehicle_type] += 1
-                            counts_by_line[i]['total'] += 1
-                            last_count_frame[key] = frame_idx
-                            track_sides[i][track_id] = side
-                            last_line_for_track[track_id] = (i, frame_idx)
-                            print(f"[f{frame_idx}] track {track_id} ({vehicle_type}) crossed line {i+1} -> total={counts_by_line[i]['total']}")
-                        else:
-                            track_sides[i][track_id] = side
+                   
+                        if track_id in counted_tracks[i]:
+                   
+                            if frame_idx - last_counted_frame[i].get(track_id, 0) < 30: 
+                                continue
+                        
+                        # count by vehicle type and total
+                        counts_by_line[i][vehicle_type] += 1
+                        counts_by_line[i]['total'] += 1
+                        track_sides[i][track_id] = side
+                        last_line_for_track[track_id] = (i, frame_idx)
+                        
+                      
+                        counted_tracks[i].add(track_id)
+                        last_counted_frame[i][track_id] = frame_idx
+                        
+                        print(f"[f{frame_idx}] track {track_id} ({vehicle_type}) crossed line {i+1} -> total={counts_by_line[i]['total']}")
                     else:
                         track_sides[i][track_id] = side
-
-            # label vehicle type above bbox
-            cv2.putText(frame, vehicle_type, (nx1, max(15, ny1 - 8)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
         # draw counters on video (per class) with colored strip per line
         base_x = 20
         base_y = 20
-        line_gap = 90
+        line_gap = 180  # increased gap
         for i, cnts in enumerate(counts_by_line):
             color = line_colors[i]
             # colored strip on left
             rx = base_x
             ry = base_y + i * line_gap
-            rect_w = 460
-            rect_h = 70
-            cv2.rectangle(frame, (rx, ry), (rx + 18, ry + rect_h), color, -1)
+            rect_w = 920  # increased width
+            rect_h = 140  # increased height
+            cv2.rectangle(frame, (rx, ry), (rx + 36, ry + rect_h), color, -1)  # wider strip
             # background box
-            cv2.rectangle(frame, (rx + 20, ry), (rx + 20 + rect_w, ry + rect_h), (0, 0, 0), -1)
+            cv2.rectangle(frame, (rx + 40, ry), (rx + 40 + rect_w, ry + rect_h), (0, 0, 0), -1)
             # title with same color
-            cv2.putText(frame, f"Line {i+1} Total: {cnts['total']}", (rx + 28, ry + 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+            cv2.putText(frame, f"Line {i+1} Total: {cnts['total']}", (rx + 56, ry + 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 2.0, color, 5)  # larger title
             breakdown = f"car:{cnts['car']}  bus:{cnts['bus']}  truck:{cnts['truck']}  moto:{cnts['motorcycle']}"
-            cv2.putText(frame, breakdown, (rx + 28, ry + 55),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.putText(frame, breakdown, (rx + 56, ry + 100),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1.5, (255, 255, 255), 4)  # larger breakdown text
 
         out.write(frame)
         frame_idx += 1
