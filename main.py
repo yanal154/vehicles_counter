@@ -281,7 +281,7 @@ def count_vehicle_with_lines(input_path, output_path, lines, max_frames=None):
 
             vehicle_type = VEHICLE_CLASS_MAP[cls_id]
 
-            # إظهار ID الكائن ونوعه
+           
             label = f"{vehicle_type} ID:{track_id}" if track_id is not None else vehicle_type
             cv2.putText(frame, label, (nx1, max(30, ny1 - 12)),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 4)  # larger label
@@ -384,3 +384,4 @@ if __name__ == "__main__":
             os.system(f'xdg-open "{OUTPUT_VIDEO}"')
     except Exception:
         pass
+
